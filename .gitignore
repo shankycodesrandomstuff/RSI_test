@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+logs/*
+!logs/.gitkeep
+source_rsi/source_runs/*
+!source_rsi/source_runs/.gitkeep

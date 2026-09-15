@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "name": "baseline-v1",
+  "population": 4,
+  "initial_samples": 8,
+  "step_scale": 3.2,
+  "min_scale": 0.8,
+  "cooling": 0.992,
+  "restart_rate": 0.12,
+  "elite_bias": 0.7,
+  "proposal_kernel": "gaussian"
+}
