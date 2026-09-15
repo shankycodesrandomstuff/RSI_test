@@ -1,284 +1,500 @@
 # Sandboxed Recursive Self-Improvement Prototype
 
-A deliberately bounded research prototype for studying **recursive self-improvement (RSI)** without giving an optimizer unrestricted access to its own runtime, evaluator, objectives, filesystem, network, or deployment environment.
+> **A sleep-deprived research project about letting code improve code, while very specifically not letting the code become root.**
+>
+> Written at an hour when sensible people are asleep and computers are making suspicious noises.
 
-> **Status:** Offline research prototype. Python 3.10+ required. Linux `unshare` is required for the source-level experiment.
+## What is this?
 
-## What this project actually demonstrates
+This is a deliberately constrained experiment in **recursive self-improvement (RSI)**.
 
-This repository contains two related experiments:
-
-1. **`rsi/`** — a JSON-policy prototype in which the mutable optimizer is represented as a restricted data structure.
-2. **`source_rsi/`** — the stronger source-level experiment, where the mutable artifact is a real Python optimizer module.
-
-The source-level experiment is the primary implementation. It can generate candidate source files, validate them, execute them inside a Linux namespace sandbox, independently recompute their benchmark scores, and promote a candidate only when it clears a validation threshold.
-
-The RSI claim is intentionally narrow. A run qualifies as a bounded source-level RSI demonstration only when an actual executable child source differs from its parent, an independent evaluator scores it, an algorithmic source rewrite clears validation, and that exact promoted source becomes the parent for a later generation. This is **not** evidence of AGI, open-ended self-improvement, self-awareness, autonomy, or an intelligence explosion.
-
-## Architecture
+The basic idea is stupidly simple:
 
 ```text
-                         HUMAN / CLI
-                              |
-                              v
-                    +-------------------+
-                    |    RSI Engine     |
-                    | trusted control    |
-                    +---------+---------+
-                              |
-                       current source
-                              |
-                              v
-                    +-------------------+
-                    | SourceMutationAI   |
-                    | bounded synthesis  |
-                    +---------+---------+
-                              |
-                       child Python
-                              |
-                              v
-                    +-------------------+
-                    | Source Validator   |
-                    | AST + tiny grammar |
-                    +---------+---------+
-                              |
-                           accepted
-                              |
-                              v
-                    +-------------------+
-                    | Linux Sandbox      |
-                    | user/mount/PID/net |
-                    | namespaces         |
-                    +---------+---------+
-                              |
-                         point traces
-                              |
-                              v
-                    +-------------------+
-                    | Parent Evaluator   |
-                    | recomputes scores  |
-                    +---------+---------+
-                              |
-                              v
-                    +-------------------+
-                    | Validation Gate    |
-                    | promote / retain   |
-                    +---------+---------+
-                              |
-                              v
-                       next parent
+program
+  ↓
+make a slightly different program
+  ↓
+run it
+  ↓
+see if it is actually better
+  ↓
+keep it if it is
+  ↓
+use THAT program to make the next one
+  ↓
+repeat until either it works or the laws of thermodynamics win
 ```
 
-The generator, evaluator, selector, and benchmark are separate trusted components. The candidate never controls the promotion decision.
+Except there is one fairly important detail:
 
-## Source-level experiment
+**the thing being improved does not get to redesign the laboratory.**
 
-The source-level loop is implemented in `source_rsi/engine.py`:
+It cannot rewrite the evaluator, change the benchmark, escape the sandbox, acquire networking, rummage through credentials, or decide that it has promoted itself because it feels particularly intelligent today.
+
+This is not AGI. It is not consciousness. It is not an intelligence explosion. It is a small optimizer being repeatedly modified under a bunch of deliberately boring restrictions.
+
+The boring restrictions are the interesting part.
+
+---
+
+## What the project actually contains
+
+There are two experiments because apparently one experiment was not enough paperwork.
+
+### `rsi/` — the original JSON-policy experiment
+
+The optimizer is represented as restricted JSON data.
+
+This is the simpler version. It demonstrates the basic loop without allowing candidates to generate arbitrary Python source.
+
+### `source_rsi/` — the source-level experiment
+
+This is the more interesting version.
+
+The mutable artifact is an actual Python module, `baseline_optimizer.py`.
+
+Candidates can therefore change real program logic, subject to a tiny allowed source grammar. A candidate is accepted only if it survives validation, runs inside the containment boundary, produces valid behavior, and improves on an independently evaluated validation suite.
+
+So yes, it technically modifies code.
+
+No, it does not get to rewrite `sudo`.
+
+---
+
+# The whole thing in one picture
 
 ```text
-parent optimizer source
-        |
-        v
+                    HUMAN
+                      |
+                      v
+              +---------------+
+              |   RSI ENGINE  |
+              | trusted stuff |
+              +-------+-------+
+                      |
+                current source
+                      |
+                      v
+              +---------------+
+              | SourceMutation |
+              |      AI        |
+              | bounded search |
+              +-------+-------+
+                      |
+                child Python
+                      |
+                      v
+              +---------------+
+              |    VALIDATOR   |
+              | AST + grammar  |
+              +-------+-------+
+                      |
+                 "looks legal"
+                      |
+                      v
+              +---------------+
+              |    SANDBOX     |
+              | user / mount / |
+              | PID / network  |
+              |    namespaces  |
+              +-------+-------+
+                      |
+                 point traces
+                      |
+                      v
+              +---------------+
+              |   EVALUATOR    |
+              | calculates the |
+              | score itself    |
+              +-------+-------+
+                      |
+                      v
+              +---------------+
+              | PROMOTION GATE |
+              | better enough? |
+              +-------+-------+
+                      |
+                 +----+----+
+                 |         |
+              promote    reject
+                 |         |
+                 +----+----+
+                      |
+                      v
+                 next parent
+```
+
+The candidate gets the computational equivalent of a tiny apartment with no doors to the outside world.
+
+The evaluator lives elsewhere.
+
+This is intentional.
+
+---
+
+# The RSI loop
+
+The source-level experiment is basically:
+
+```text
+parent source
+     |
+     v
 SourceMutationAI
-        |
-        +--> bounded Python child + exact unified diff
-        |
-        v
-candidate_validation.load_candidate()
-        |
-        v
+     |
+     +----> candidate source
+     |
+     v
+AST/source validation
+     |
+     v
 train evaluation
-        |
-        v
-best train survivors
-        |
-        v
-independent validation
-        |
-        v
-promotion threshold
-   +----+----+
-   |         |
-retain    promote
-   |         |
-   +----+----+
-        |
-        v
-independent audit
-        |
-        v
-next generation parent
+     |
+     v
+keep the best few
+     |
+     v
+validation evaluation
+     |
+     v
+"did this actually improve?"
+     |
+   +---+---+
+   |       |
+  YES      NO
+   |       |
+   v       v
+promote   keep parent
+   |
+   +---+---+
+       |
+       v
+     audit
+       |
+       v
+ next generation
 ```
 
-`engine.py` also constrains configuration values, prevents path traversal, refuses to overwrite non-empty run directories, validates the baseline before candidate execution, records parent/child hashes and exact diffs, and writes the final promoted source as `best_optimizer.py`.
+The generator does not get to decide whether its child is good.
 
-## Candidate source security
+The child does not get to decide whether its score is good.
 
-Candidates are real Python source, but they are restricted to a deliberately tiny language before execution.
+The evaluator does not get to rewrite the child.
 
-`source_rsi/trusted/candidate_validation.py` enforces:
+The benchmark does not get to mysteriously change because the candidate discovered that Rastrigin is annoying.
 
-- a maximum source size of 12,000 UTF-8 bytes;
-- exactly seven bounded numeric configuration fields plus `ALGORITHM`;
-- only the fixed `select_parent(state, rng)` and `propose(state, rng)` functions;
-- only the algorithms `gaussian`, `coordinate`, and `cauchy`;
-- no imports or `from ... import ...` statements;
-- no classes, lambdas, generators, async functions, `with`, `try`, `raise`, `delete`, or dynamic assignment constructs;
-- no private/reflection attributes;
-- no arbitrary function calls;
-- no arbitrary attribute access;
-- restricted subscripting and assignment;
-- finite numeric values and bounded proposal vectors;
-- an execution namespace with empty `__builtins__` and only explicitly supplied helpers.
+Separation of duties. Revolutionary concept. Apparently humans eventually invented it.
 
-This is a language restriction, not a proof that Python itself is a secure sandbox. The project therefore adds OS-level isolation as a second boundary.
+---
 
-## Sandbox and containment
+# So... does it authenticate anything?
 
-`source_rsi/sandbox.py` launches candidates with Linux `unshare` using separate:
+No.
 
-- user namespace;
-- mount namespace;
-- PID namespace;
-- network namespace.
+There is **no conventional authentication system** in this repository.
 
-The candidate receives:
+There is no:
 
-- a read-only Python runtime;
-- read-only trusted worker files;
-- read-only candidate source;
-- an isolated `/proc`;
-- a temporary filesystem for scratch space.
+- username/password login
+- OAuth
+- JWT
+- bearer token
+- session cookie
+- API key
+- login endpoint
+- authentication header
+- refresh token
+- secret-management service
+- network API
 
-The process receives a scrubbed environment and no inherited stdin. CPU time, virtual memory, process count, and wall-clock execution are bounded. If `unshare` is unavailable, the launcher **refuses to execute the candidate** rather than falling back to unsandboxed host execution.
+Because there is no network service to authenticate against.
 
-The candidate has no mounted host home directory, experiment logs, evaluator source, credentials, or network access.
-
-The supplied Docker configuration adds another containment layer: no network, dropped Linux capabilities, read-only root filesystem, `no-new-privileges`, process/memory/CPU limits, and a restricted tmpfs work directory.
-
-### Important limitation
-
-This is strong containment for the deliberately restricted experiment, **not a general-purpose hostile-code sandbox**. Do not treat the Python validator or the supplied container configuration as equivalent to a formally verified VM or hardened production isolation boundary.
-
-## Trust model
-
-There is intentionally no conventional authentication system in this repository.
-
-There are:
-
-- no user/password login flows;
-- no OAuth;
-- no JWTs;
-- no bearer tokens;
-- no session cookies;
-- no API-key authentication;
-- no network service;
-- no deployment credentials.
-
-Instead, the security model is based on **integrity and isolation**.
+The security model here is **integrity + isolation**, not authentication.
 
 ### Source hashes
 
-Parent and child source files are identified using source hashes. These hashes answer:
+Parent and child programs are identified by hashes.
+
+A hash answers:
 
 > "Is this the exact source artifact we recorded?"
 
-They do **not** answer:
+It does **not** answer:
 
-> "Is this user authenticated?"
+> "Is Shanky logged in?"
 
-A hash is therefore an artifact-integrity mechanism, not an authentication token.
+Those are different questions. Cryptography unfortunately cannot solve every problem merely by appearing in a sentence.
 
-### Candidate authority
+The hashes are therefore artifact identity/integrity mechanisms, not authentication tokens.
 
-A candidate has no authority to:
+---
 
-- change the benchmark;
-- change the evaluator;
-- choose its own score;
-- change the promotion threshold;
-- access experiment logs;
-- modify the parent-side process;
-- promote itself;
-- access host credentials;
-- access the network.
+# What can a candidate actually do?
 
-The candidate emits only optimization point traces. The parent-side evaluator independently recomputes objective costs from those points and owns the resulting score.
+Not much.
 
-## Evaluation flow
+And that is the point.
 
-Each candidate is evaluated against fixed numerical objectives. The evaluator verifies:
+The validator restricts candidates to a tiny subset of Python. It checks the source with the AST before allowing it anywhere near execution.
 
-1. the trace corresponds to the requested function and seed;
-2. the trace has exactly the required number of calls;
-3. every point has the correct dimensionality;
-4. every value is finite and within the allowed domain;
-5. objective costs are recomputed independently;
-6. the resulting mean score is calculated by the trusted evaluator.
+The allowed optimizer has:
 
-The source-level benchmark uses Sphere, Rastrigin, Ackley, and Rosenbrock objectives with a fixed budget and deterministic seed splits. Training ranks candidates, validation controls promotion, and audit is report-only.
+- seven bounded numeric configuration values;
+- one of three permitted algorithms: `gaussian`, `coordinate`, or `cauchy`;
+- exactly two optimizer functions;
+- a fixed function interface;
+- bounded four-dimensional proposal vectors.
 
-## Promotion policy
-
-The engine does not promote the best-looking training result directly.
+The validator rejects things such as:
 
 ```text
-candidate population
-       |
-       v
-train evaluation
-       |
-       v
-train survivors
-       |
-       v
-validation evaluation
-       |
-       v
-best valid candidate
-       |
-       +---- validation improvement >= threshold? ----+
-       |                                               |
-      YES                                             NO
-       |                                               |
-       v                                               v
-   promote                                         retain parent
+imports
+classes
+lambdas
+generators
+async code
+with blocks
+try/except
+raise
+delete
+dynamic calls
+private/reflection attributes
+arbitrary attribute access
+arbitrary function calls
 ```
 
-The default validation improvement threshold is `0.002`.
+It also limits source size and requires finite numeric values.
 
-For the source-level experiment, the logs additionally record whether a promoted candidate changed an algorithm body or only a numeric constant. This distinction matters because a constant tweak is hyperparameter optimization, while an algorithm-body rewrite is the minimum interesting event for the narrow source-level RSI definition.
+The execution namespace has effectively no builtins and only exposes the explicitly approved helpers.
 
-## Reproducibility
+So the candidate cannot simply discover `subprocess` at 3 AM and decide that today is the day it becomes a Linux distribution.
 
-The experiment is designed to be inspectable rather than to manufacture an improvement claim.
+---
 
-Every run can retain:
+# Then comes the actual sandbox
 
-- parent and child hashes;
-- exact unified diffs;
+Because saying "we checked the AST" and calling it a day would be an absolutely incredible security strategy.
+
+`source_rsi/sandbox.py` uses Linux `unshare` to create separate:
+
+- **user namespace**
+- **mount namespace**
+- **PID namespace**
+- **network namespace**
+
+The candidate gets a restricted environment containing:
+
+```text
+read-only Python runtime
+read-only trusted worker files
+read-only candidate source
+isolated /proc
+tmpfs scratch space
+```
+
+It does **not** get:
+
+```text
+host home directory
+experiment logs
+evaluator source
+host credentials
+network access
+```
+
+The environment is scrubbed and stdin is disconnected. CPU time, memory, process count, and execution time are bounded.
+
+And there is an important fail-closed behavior:
+
+> If `unshare` is unavailable, the project refuses to run the candidate.
+
+It does not say "security unavailable, but YOLO" and execute it on the host anyway.
+
+---
+
+# The evaluator does not trust the candidate
+
+This is probably the most important part.
+
+The candidate does **not** submit:
+
+```json
+{"score": 0.999999}
+```
+
+and expect everyone to clap.
+
+Instead, the sandbox worker emits **point traces**.
+
+The parent-side evaluator receives those traces and independently calculates the objective costs.
+
+Conceptually:
+
+```text
+candidate
+   |
+   | "here are the points I tried"
+   v
+trusted evaluator
+   |
+   | calculates objective(point)
+   v
+actual score
+```
+
+The evaluator verifies that:
+
+1. the trace belongs to the requested function and seed;
+2. the trace has the correct number of calls;
+3. every point has the correct dimensions;
+4. every value is finite;
+5. every value is inside the permitted domain;
+6. the objective function is calculated by the evaluator itself.
+
+Therefore a candidate cannot simply announce that it achieved a score of `∞/10` because it has developed an extremely strong relationship with mathematics.
+
+---
+
+# Train → validation → audit
+
+The system deliberately does not promote whatever looks good on the first benchmark.
+
+It uses three conceptual splits:
+
+### Train
+
+Used to rank candidates.
+
+### Validation
+
+Used to decide whether a candidate is actually worth promoting.
+
+### Audit
+
+Used for reporting only.
+
+The default minimum validation improvement is:
+
+```text
+0.002
+```
+
+So the rough decision is:
+
+```text
+candidate beats parent by enough?
+          |
+      +---+---+
+      |       |
+     YES      NO
+      |       |
+      v       v
+   PROMOTE   RETAIN
+```
+
+The engine also records whether the winning candidate changed an **algorithm body** or merely changed a numeric constant.
+
+That distinction matters because changing `STEP_SCALE = 0.5` is basically hyperparameter optimization.
+
+Changing the actual proposal algorithm is more interesting.
+
+---
+
+# What gets recorded?
+
+The project is intentionally obnoxious about logging.
+
+Each run can retain:
+
+- parent hash;
+- child hash;
+- exact unified diff;
 - changed fields;
-- candidate source files;
+- candidate source;
 - train metrics;
 - validation metrics;
 - audit metrics;
-- promotion decisions;
+- promotion decision;
 - errors;
-- elapsed execution time;
+- elapsed time;
 - cumulative validation improvement.
 
-A run with zero promotions is a valid result. The repository does not ship with fabricated performance claims.
+The source-level experiment keeps candidate `.py` files and `.diff` files under the generation directory.
 
-## Running the project
+The final promoted program is written as:
 
-### JSON-policy prototype
+```text
+best_optimizer.py
+```
+
+So you can actually inspect what survived instead of being told "trust me bro, generation 17 was really good."
+
+---
+
+# What the candidate cannot change
+
+This is where the experiment draws its actual boundary.
+
+The candidate cannot modify:
+
+- the evaluator;
+- the benchmark objectives;
+- the validation criterion;
+- the promotion threshold;
+- the sandbox;
+- the proposal generator;
+- the allowed language;
+- the hardware/resource policy;
+- the parent-side control process;
+- its own score.
+
+This is deliberate.
+
+If the optimizer were allowed to rewrite the code that determines whether the optimizer improved, we'd have created a slightly more complicated version of:
+
+```text
+"I have evaluated myself and I am excellent."
+```
+
+which is not exactly the scientific breakthrough people were hoping for.
+
+---
+
+# Why this is called RSI at all
+
+The term is deliberately used narrowly.
+
+A source-level run only qualifies as the interesting version of the RSI experiment if all of these happen:
+
+1. An actual executable child source differs from its parent.
+2. An independent evaluator scores the child's behavior.
+3. An **algorithmic source rewrite**, not merely a constant tweak, passes validation.
+4. That exact promoted source becomes the parent for a later generation.
+
+If those conditions aren't met, the honest description is something like:
+
+> bounded evolutionary search / source-level hyperparameter optimization
+
+rather than waving the letters **RSI** around like a magical spell.
+
+---
+
+# Running it
+
+## JSON-policy experiment
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 run_experiment.py --generations 5 --candidates 12 --output logs/demo
+python3 run_experiment.py \
+  --generations 5 \
+  --candidates 12 \
+  --output logs/demo
 ```
 
-### Source-level experiment
+## Source-level experiment
+
+Linux is required because the source-level sandbox uses `unshare`.
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -289,12 +505,22 @@ python3 run_source_rsi.py \
   --output source_rsi/source_runs/my-source-run
 ```
 
-### Docker containment
+Requirements:
 
-Build only from a trusted, locally available Python base image if the environment has no network access:
+- Python 3.10+
+- Linux
+- `unshare` for source-level execution
+- no third-party Python dependencies
+
+---
+
+# Docker mode
+
+For another layer of containment, the repository includes a Docker configuration.
 
 ```bash
 docker build -t local-rsi-prototype .
+
 docker run --rm \
   --network none \
   --read-only \
@@ -310,70 +536,125 @@ docker run --rm \
   --output /work/run
 ```
 
-## Repository layout
+This is defense in depth, not divine intervention.
+
+The container configuration drops capabilities, disables networking, makes the root filesystem read-only, enables `no-new-privileges`, and imposes resource limits.
+
+It is still **not** a formally verified hostile-code sandbox or a replacement for a hardened VM when dealing with genuinely adversarial native code.
+
+---
+
+# Repository layout
 
 ```text
 RSI_test/
-├── rsi/                         JSON-policy experiment
-├── source_rsi/                  source-level experiment
-│   ├── artifacts/               trusted baseline source
-│   ├── trusted/                 validator, worker, benchmark
-│   ├── engine.py                experiment control loop
-│   ├── evaluator.py             independent evaluator
-│   ├── sandbox.py               Linux namespace launcher
-│   ├── templates.py             bounded source synthesizer
-│   └── source_runs/             generated experiment outputs
-├── artifacts/                   JSON baseline artifact
-├── tests/                       offline tests
-├── logs/                        generated JSON-policy runs
-├── Dockerfile                   optional container boundary
-├── run_experiment.py            JSON-policy entry point
-└── run_source_rsi.py            source-level entry point
+│
+├── rsi/
+│   └── the original JSON-policy experiment
+│
+├── source_rsi/
+│   ├── artifacts/
+│   │   └── trusted baseline optimizer
+│   ├── trusted/
+│   │   ├── benchmark.py
+│   │   ├── candidate_validation.py
+│   │   └── worker.py
+│   ├── engine.py
+│   ├── evaluator.py
+│   ├── sandbox.py
+│   ├── templates.py
+│   └── source_runs/
+│
+├── artifacts/
+│   └── JSON baseline artifact
+│
+├── tests/
+│   └── offline tests
+│
+├── logs/
+│   └── generated JSON-policy runs
+│
+├── Dockerfile
+├── run_experiment.py
+└── run_source_rsi.py
 ```
 
-## Failure modes and research limitations
+---
 
-### Benchmark overfitting
+# Known problems, because science
 
-Repeated validation can eventually overfit a fixed benchmark. A serious study should reserve a genuinely untouched final test set and use broader task distributions.
+## Benchmark overfitting
 
-### Stochastic selection
+The validation set is consulted repeatedly. That means repeated selection can eventually overfit it.
 
-Fixed seeds improve reproducibility but do not establish statistical significance. Larger seed sets and confidence intervals are needed for stronger claims.
+A serious experiment should use larger, genuinely held-out task distributions and an untouched final test suite.
 
-### Generator stagnation
+## Small seed sets
 
-The source synthesizer searches a deliberately small grammar. It cannot discover arbitrary new programming techniques.
+Fixed seeds make experiments reproducible, but reproducibility is not statistical significance.
 
-### Evaluation cost
+More seeds and confidence intervals would be appropriate for serious claims.
 
-Reliable independent evaluation is the main computational bottleneck. A system that can cheaply generate thousands of candidates but cannot evaluate them independently is not particularly useful.
+## Tiny search grammar
 
-### Containment
+The synthesizer only searches a deliberately small space of optimizer structures.
 
-The included isolation mechanisms are designed around this restricted DSL. Arbitrary native code, kernel vulnerabilities, malicious dependencies, or a compromised host require stronger isolation assumptions.
+It cannot suddenly invent a new branch of mathematics because it got bored.
 
-## What this project does *not* show
+## Evaluation cost
 
-This project does not demonstrate:
+Generating candidates is cheap compared with evaluating them reliably.
+
+Independent evaluation is therefore one of the main bottlenecks.
+
+## Sandbox limits
+
+The containment model is designed around this restricted experiment. It should not be interpreted as proof that arbitrary malicious native code is safe.
+
+---
+
+# What this absolutely does NOT prove
+
+Despite what a sufficiently caffeinated README might imply, this project does **not** demonstrate:
 
 - AGI;
-- consciousness or self-awareness;
-- autonomous goals;
+- consciousness;
+- self-awareness;
+- autonomous motivation;
 - self-preservation;
 - unrestricted self-modification;
-- modification of its own evaluator or objective;
-- modification of its own sandbox;
 - unrestricted resource acquisition;
+- evaluator modification;
+- sandbox modification;
 - deployment autonomy;
-- intelligence explosion.
+- an intelligence explosion.
 
-The system is a human-invoked benchmark optimization loop with a deliberately constrained mutable artifact.
+It is a human-invoked optimization loop operating over a deliberately restricted program representation.
 
-## Design principle
+That's it.
 
-The central principle is **separation of capability, objective, and authority**.
+Well, that's it **plus Linux namespaces, AST validation, source diffs, deterministic benchmarks, independent scoring, and enough logging to make the README this long at 3 AM.**
 
-A candidate can be capable of producing an optimizer proposal without being authorized to decide whether that proposal is correct. A candidate can execute computation without receiving access to the evaluator that judges it. A promoted program can become the next parent without gaining control over the machinery that generates, evaluates, or contains its descendants.
+---
 
-That separation is the core research value of the prototype.
+# The actual design philosophy
+
+The central rule is:
+
+> **Capability does not imply authority.**
+
+A candidate can propose an algorithm without being allowed to judge that algorithm.
+
+It can execute computation without being allowed to inspect the evaluator.
+
+It can become the next parent without being allowed to redesign the machinery that creates its descendants.
+
+It can improve the thing it is responsible for without being handed the keys to everything else.
+
+That separation is the actual experiment.
+
+The recursive part is interesting.
+
+The fact that the recursive thing is sitting inside a tiny Linux prison is arguably more interesting.
+
+And yes, this README was probably written when I should have been sleeping.
