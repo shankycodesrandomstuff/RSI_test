@@ -1,4 +1,4 @@
-"""Promotion loop, logging, and the parent-side evaluator containment controls."""
+"""Promotion loop and the boring parts that keep candidate evaluation boxed in."""
 from __future__ import annotations
 
 import json
@@ -39,7 +39,7 @@ class ExperimentConfig:
 
 
 def _limit_child_resources() -> None:
-    """Best-effort POSIX caps; Docker/VM remains the real untrusted-code boundary."""
+    """Best-effort POSIX limits. Docker or a VM is still the real boundary for untrusted code."""
     try:
         import resource
         resource.setrlimit(resource.RLIMIT_CPU, (15, 16))
@@ -50,7 +50,7 @@ def _limit_child_resources() -> None:
 
 
 def evaluate_subprocess(policy: PolicyProgram, split: str, output_root: Path) -> dict[str, Any]:
-    """Evaluate data in a fresh process; candidate data never becomes executable text."""
+    """Evaluate in a fresh process; the JSON policy never turns into executable source."""
     scratch = safe_child(output_root, "_scratch")
     scratch.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
