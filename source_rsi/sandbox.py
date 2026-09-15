@@ -1,8 +1,9 @@
-"""Linux namespace launcher for candidate source execution.
+"""Linux namespace launcher for the one thing we absolutely do not trust.
 
-The candidate sees a temporary chroot containing only read-only Python runtime,
-read-only worker/candidate files, empty proc, and a tmpfs. It has a new network
-namespace and no host home, experiment logs, evaluator, or credentials.
+The candidate gets a temporary chroot with read-only runtime files and a tmpfs.
+It gets no host home, logs, evaluator, credentials, or network. If the required
+namespace machinery is missing, execution stops instead of quietly pretending
+that running untrusted source on the host is a reasonable backup plan.
 """
 from __future__ import annotations
 
@@ -33,6 +34,7 @@ def _safe_under(root: Path, path: Path) -> Path:
 
 
 def _shell_script() -> str:
+    # Keep the candidate's filesystem boring. Boring is doing useful work here.
     # $1 root directory (already within run dir); $2 trusted; $3 candidate; $4 tasks JSON.
     return r'''set -eu
 root="$1"
@@ -62,7 +64,7 @@ exec chroot "$root" /usr/bin/python3 -I /trusted/worker.py /candidate/optimizer.
 
 
 def run_candidate(source_path: Path, task_list: list[tuple[str, int]], scratch_root: Path) -> dict[str, Any]:
-    """Execute candidate once in containment and return only its trace JSON."""
+    """Execute a candidate in containment and return its trace. Not its score."""
     source_path = _safe_under(scratch_root.parent, source_path)
     scratch_root = _safe_under(scratch_root.parent, scratch_root)
     if not shutil.which("unshare"):
@@ -83,7 +85,7 @@ def run_candidate(source_path: Path, task_list: list[tuple[str, int]], scratch_r
     except subprocess.TimeoutExpired as exc:
         raise SandboxError(f"candidate timed out after {TIMEOUT_SECONDS}s") from exc
     finally:
-        # The rootfs contents only existed as a private tmpfs mount. The host directory is inside the run dir.
+        # The rootfs contents only existed on the private tmpfs mount.
         if rootfs.exists():
             rootfs.rmdir()
     elapsed = time.monotonic() - started
