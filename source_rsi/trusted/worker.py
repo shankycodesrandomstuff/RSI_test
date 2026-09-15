@@ -1,8 +1,4 @@
-"""Runs a candidate only inside the Linux namespace rootfs.
-
-Its output is a point trace, never a candidate-provided score.  The parent-side
-evaluator independently replays every point and owns all promotion decisions.
-"""
+"""Run the candidate and return point traces. Scores stay outside the sandbox."""
 from __future__ import annotations
 
 import json
