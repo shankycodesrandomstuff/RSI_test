@@ -1,4 +1,4 @@
-"""Parent-side independent evaluator. It never trusts candidate-reported scores."""
+"""Parent-side evaluator. Candidate scores are not a trusted input, because obviously."""
 from __future__ import annotations
 
 import math
